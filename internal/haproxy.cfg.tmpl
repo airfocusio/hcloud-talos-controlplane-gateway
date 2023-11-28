@@ -1,0 +1,33 @@
+global
+  log stdout format raw local0
+defaults
+  timeout connect 10s
+  timeout client 30s
+  timeout server 30s
+  log global
+  maxconn 512
+  balance roundrobin
+
+
+frontend fe_kubernetes
+  mode tcp
+  bind :6443
+  default_backend be_kubernetes
+
+backend be_kubernetes
+  mode tcp
+{{ range $index, $ip := .IPv4s }}
+  server s{{ $index }}_kubernetes {{ $ip }}:6443
+{{ end }}
+
+
+frontend fe_talos
+  mode tcp
+  bind :50000
+  default_backend be_talos
+
+backend be_talos
+  mode tcp
+{{ range $index, $ip := .IPv4s }}
+  server s{{ $index }}_talos {{ $ip }}:50000
+{{ end }}
