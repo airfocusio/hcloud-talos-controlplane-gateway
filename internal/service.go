@@ -156,14 +156,18 @@ func (s *Service) ReconcileHaproxy() error {
 		return err
 	}
 
-	s.logger.Debug.Printf("Writing haproxy config to %s\n", s.haproxyConfigFileName)
-	if err := os.WriteFile(s.haproxyConfigFileName, haproxyConfig.Bytes(), 0644); err != nil {
+	changed, err := WriteFileIfChanged(s.haproxyConfigFileName, haproxyConfig.Bytes(), 0644)
+	if err != nil {
 		return err
 	}
-	if s.haproxyProcess != nil {
-		s.logger.Debug.Printf("Reloading haproxy\n")
-		if err := s.haproxyProcess.Process.Signal(syscall.SIGHUP); err != nil {
-			return err
+
+	if changed {
+		s.logger.Debug.Printf("Updated haproxy config at %s\n", s.haproxyConfigFileName)
+		if s.haproxyProcess != nil {
+			s.logger.Debug.Printf("Reloading haproxy\n")
+			if err := s.haproxyProcess.Process.Signal(syscall.SIGHUP); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -209,11 +213,13 @@ func (s *Service) ReconcileFirewall() error {
 		},
 	}
 
-	s.logger.Info.Printf("Updating firewall rules")
-	if _, _, err := s.hcloudClient.Firewall.SetRules(s.ctx, firewall, hcloud.FirewallSetRulesOpts{
-		Rules: expectedRules,
-	}); err != nil {
-		return fmt.Errorf("updating firewall failed: %w", err)
+	if !HcloudFirewallRulesCompare(expectedRules, firewall.Rules) {
+		if _, _, err := s.hcloudClient.Firewall.SetRules(s.ctx, firewall, hcloud.FirewallSetRulesOpts{
+			Rules: expectedRules,
+		}); err != nil {
+			return fmt.Errorf("updating firewall rules failed: %w", err)
+		}
+		s.logger.Info.Printf("Updated firewall rules")
 	}
 
 	return nil
