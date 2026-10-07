@@ -17,7 +17,7 @@ frontend fe_kubernetes
 backend be_kubernetes
   mode tcp
 {{ range $index, $ip := .IPv4s }}
-  server s{{ $index }}_kubernetes {{ $ip }}:6443
+  server s{{ $index }}_kubernetes {{ $ip }}:6443 check
 {{ end }}
 
 
@@ -29,5 +29,5 @@ frontend fe_talos
 backend be_talos
   mode tcp
 {{ range $index, $ip := .IPv4s }}
-  server s{{ $index }}_talos {{ $ip }}:50000
+  server s{{ $index }}_talos {{ $ip }}:50000 check
 {{ end }}
